@@ -117,7 +117,9 @@ acc_total_df =
    group_by(week,day_of_the_week,day_id) %>% 
    summarise(total_of_the_day = sum(activity_count))
 day_of_week_p = 
-  ggplot(data = acc_total_df,aes(x = day_id,y = total_of_the_day, color = day_of_the_week)) + geom_point() + geom_line()
+  ggplot(data = acc_total_df,aes(x = day_id,y = total_of_the_day, color = day_of_the_week)) + 
+  geom_point() + 
+  geom_line()
 acc_total_df %>% 
   select(-day_id) %>% 
   knitr::kable()
@@ -128,7 +130,9 @@ weekday_vs_weekend_p =
   accel_df %>% 
   group_by(week,weekday_weekend) %>% 
   summarise(mean_of_the_weekday_end = mean(activity_count)) %>% 
-  ggplot(aes(x = week,y = mean_of_the_weekday_end, color = weekday_weekend)) + geom_point() + geom_line()
+  ggplot(aes(x = week,y = mean_of_the_weekday_end, color = weekday_weekend)) + 
+  geom_point() + 
+  geom_line()
 ```
 I will create a plot showing the trend of different weeks.
 ```{r}
@@ -136,7 +140,8 @@ week_trend_p =
   accel_df %>% 
   group_by(week) %>% 
   summarise(total_of_week = sum(activity_count)) %>% 
-ggplot(aes(x = week,y = total_of_week)) + geom_point() + geom_line()
+ggplot(aes(x = week,y = total_of_week)) + 
+geom_point() + geom_line()
 ```
 Then I will join three graphs together
 ```{r}
@@ -152,12 +157,17 @@ Third, the difference between different days of a week is not apparent, but Tues
 I will make a single-panel plot that shows the 24-hour activity time courses for each day.
 ```{r}
 accel_df %>% 
-  ggplot(aes(x = minutes_of_the_day, y = activity_count,color = day_of_the_week)) +    geom_line(alpha = 0.2) + stat_smooth(se = FALSE)
+  ggplot(aes(x = minutes_of_the_day, y = activity_count,color = day_of_the_week)) +   
+  geom_line(alpha = 0.2) +
+  stat_smooth(se = FALSE)
 ```
 Without further zoom in,the trend in different minutes of each day is not that obvious, and thus I zoom in with the limit of activity counts between 0 to 2000.
 ```{r}
 accel_df %>% 
-  ggplot(aes(x = minutes_of_the_day, y = activity_count,color = day_of_the_week)) +  geom_line(alpha = 0.2) + stat_smooth(se = FALSE) + coord_cartesian(ylim = c(0,2000))
+  ggplot(aes(x = minutes_of_the_day, y = activity_count,color = day_of_the_week)) +  
+  geom_line(alpha = 0.2) + 
+  stat_smooth(se = FALSE) + 
+  coord_cartesian(ylim = c(0,2000))
 ```
 This plot shows that between 0 to 250 minutes (around 0:00 to 4:10), the activity counts are pretty low. After 250 minutes, the activity counts start to increase which implies there are more activities at day time. Then, around 1250 minutes (around 20:50), the activity counts start to decrease and this implies there are less activities at evening and night time. Finally, the activity counts get close to 0 around 1440 minutes (around 24:00), and this suggests there is almost no activity at mid-night.
 
@@ -167,7 +177,79 @@ I will frist load the data.
 library(p8105.datasets)
 data("ny_noaa")
 ```
-For this data set, there are `r nrow(ny_noaa)` rows and `r ncol(ny_noaa)` columns. This datasets has the weather station id -- id. There is also a variable date, and weather variables -- prcp (precipitation), snow, snwd (snow depth), tmax(maximum temperature), and tmin(minimum temperature). There is `r nrow(filter(ny_noaa,is.na(ny_noaa)))` row that does not have missing value, and the reason for these missing values is unknown, and thus these missing value could be problematic.
+
+###question 1  
+For this data set, there are `r nrow(ny_noaa)` rows and `r ncol(ny_noaa)` columns. This datasets has the weather station id -- id. There is also a variable date, and weather variables -- prcp (precipitation), snow, snwd (snow depth), tmax(maximum temperature), and tmin(minimum temperature). There are `r nrow(ny_noaa[complete.cases(ny_noaa),])` rows that do not have missing values, and the reasons for these missing values are unknown, and thus these missing value could be problematic.
+
+Then I will do some data cleaning.
+```{r}
+nyweather_df =
+  ny_noaa %>% 
+  janitor::clean_names() %>% 
+  separate(date, into = c("year","month","day"), sep = "-") %>% 
+  mutate(
+    tmax = as.numeric(tmax)/10,
+    tmin = as.numeric(tmin)/10,
+    prcp = prcp/10) %>% 
+  rename(
+    "tmax_C" = "tmax",
+    "tmin_C" = "tmin") 
+snow_count_df =
+  nyweather_df %>% 
+  count(snow) %>% 
+	arrange(desc(n)) 
+```
+The most commonly observed values are 0, because for most of the days, there are no snow, and thus the snowfall is 0 mm. The second frequently value for snow is NA which suggests a large portion of missing values. The third and fourth frequently value for snow is 25 and 13 respectively, and this suggests a moderate snow is very frequently when there is a snow.
+
+##question 2
+Then I will make a two-panel plot showing the average max temperature in January and in July.
+```{r}
+tmax_jj_df = 
+nyweather_df %>% 
+  filter(month %in% c("01","07")) %>% 
+  mutate(month = if_else (month == "01","January","July")) %>% 
+  group_by(month,id,year) %>% 
+  summarise(mean_tmax = mean(tmax_C)) 
+ggplot(data = tmax_jj_df, aes(x = year, y = mean_tmax ,color = month, group = id)) + 
+geom_point(alpha = 0.3) +
+geom_path(alpha = 0.2) + 
+facet_grid(.~month) + 
+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) + 
+labs(y = "mean of maximum temperature")
+```
+The most obvious trend is the difference between average maximum temperature between January and July. Almost every year and every station in July has a higher average maximum temperature than that of January. Besides,the outliers in July are more obvious, and they tend to be the outliers that much lower than other values. To be more accurate about that, I will plot a boxplot.
+```{r}
+ggplot(data = tmax_jj_df, aes(x = year, y = mean_tmax ,color = month)) +
+geom_boxplot() +
+facet_grid(.~month)+ 
+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) + 
+labs(y = "mean of maximum temperature")
+```
+As the boxplot shown, the outliers for January are closer to the range of their regular values compare to those of July, and for January, the outliers are tend to be higher than the range of regular values.
+
+##question 3
+I will first make a plot for tmax vs tmin for the full dataset.
+```{r}
+min_max_p = 
+nyweather_df %>% 
+ggplot(aes(x = tmin_C, y = tmax_C)) +
+stat_bin2d(bins = 50) +
+theme(legend.position = "right")
+```
+Then I will plot the distribution of snowfall values greater than 0 and less than 100 separately by year.
+```{r}
+snow_regular_p =
+nyweather_df %>% 
+  filter(snow > 0) %>% 
+  filter(snow < 100) %>% 
+ggplot(aes(x = year, y = snow)) +
+geom_boxplot() +
+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+min_max_p/snow_regular_p + 
+ggsave("P_3_2.pdf",width = 10, height = 15)
+```
+The bin2d plots of maximum temperature vs mimimum temperature shown the maximum and minimum temperatures are concentrated at (0,7) and (17,25), and the gradient of this plot is close to 1, and this suggest that an increasing in minimum temperature usually comes with an increasing in maximum temperature. The distribution of snow fall graph shown the variability of regular snow fall (between 0 and 100) is pretty small, and only 1998,2006, and 2010 has relatively smaller snow fall than other years', and have several outliers. For other years, there are nearly no outliers, and the medium, 25 quantile, 75 quantile are nearly the same. Besides, except 2006, all the other years' snow fall data are right skewed.
+ 
 
 
 

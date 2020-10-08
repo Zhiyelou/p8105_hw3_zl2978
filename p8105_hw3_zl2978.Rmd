@@ -5,8 +5,9 @@ output: github_document
 ---
 ```{r, include=FALSE}
 library(tidyverse)
+library(patchwork)
 knitr::opts_chunk$set(
-	fig.width = 6, 
+	fig.width = 16, 
   fig.asp = .6,
   out.width = "90%"
 )
@@ -68,6 +69,108 @@ instacart %>%
 		names_from = order_dow,
 		values_from = mean_hour
 	) %>% 
-knitr::kable()
+  rename( 
+      "Sunday" = "0",
+      "Monday" = "1",
+      "Tuesday" = "2",
+      "Wednesday" = "3",
+      "Thursday" = "4",
+      "Friday" = "5",
+      "Saturday" = "6") %>% 
+  knitr::kable()
 ```
+
+##Problem 2  
+###question 1   
+I will first load and tidy the data.
+```{r}
+week_nam = tibble(
+  n = 0:6,
+  day = c("Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"))
+accel_df = 
+  read_csv("./data/accel_data.csv") %>% 
+  janitor::clean_names() %>%
+  left_join(week_nam, by = "day") %>% 
+  pivot_longer(
+    activity_1:activity_1440,
+    names_to = "minutes_of_the_day",
+    values_to = "activity_count") %>% 
+  mutate(
+    minutes_of_the_day = substr(minutes_of_the_day,10,13),
+    weekday_weekend = if_else(day %in% c("Saturday","Sunday"),"Weekend","Weekday"),
+    minutes_of_the_day = as.numeric(minutes_of_the_day),
+    day = factor(day),
+    day = fct_reorder(day,n))%>% 
+  rename("day_of_the_week" = "day") %>% 
+  group_by(week) %>% 
+  arrange(day_of_the_week, desc(n), .by_group = TRUE) %>% 
+  select(-n) %>% 
+  relocate(week,day_id,day_of_the_week,weekday_weekend)
+```
+There are `r nrow(accel_df)` observations in total, and there are `r nrow(accel_df)` rows and `r ncol(accel_df)` columns. There are information about the time of recorded variables -- week, day_id, day_of_the_week,weekday_weekend, minutes_of_the_day. The other important variable is the activity_count which is the activity counts.
+
+###question 2  
+I will create a table and a plot showing the total activity for each day.
+```{r}
+acc_total_df =
+   accel_df %>% 
+   group_by(week,day_of_the_week,day_id) %>% 
+   summarise(total_of_the_day = sum(activity_count))
+day_of_week_p = 
+  ggplot(data = acc_total_df,aes(x = day_id,y = total_of_the_day, color = day_of_the_week)) + geom_point() + geom_line()
+acc_total_df %>% 
+  select(-day_id) %>% 
+  knitr::kable()
+```
+I will create a plot showing the mean activity for weekdays and weekends.
+```{r}
+weekday_vs_weekend_p = 
+  accel_df %>% 
+  group_by(week,weekday_weekend) %>% 
+  summarise(mean_of_the_weekday_end = mean(activity_count)) %>% 
+  ggplot(aes(x = week,y = mean_of_the_weekday_end, color = weekday_weekend)) + geom_point() + geom_line()
+```
+I will create a plot showing the trend of different weeks.
+```{r}
+week_trend_p = 
+  accel_df %>% 
+  group_by(week) %>% 
+  summarise(total_of_week = sum(activity_count)) %>% 
+ggplot(aes(x = week,y = total_of_week)) + geom_point() + geom_line()
+```
+Then I will join three graphs together
+```{r}
+(week_trend_p + weekday_vs_weekend_p)/day_of_week_p
+```
+
+First, the difference between weekdays and weekends are apparent. For the first two weeks, the mean of activity counts for weekends are greater than that of weekdays. for the rest three weeks, the mean of the weekends has largely decreased and be smaller than the mean of weekdays.
+Second, the activity counts have increased from week 1 to week 2, and largely decreased from week 3 to week 4, and there is a smaller increase from week 4 to week 5.
+Third, the difference between different days of a week is not apparent, but Tuesday, Wednesday,and Thursday have relatively smaller changes in activity counts among different weeks.   
+
+
+###question 3 
+I will make a single-panel plot that shows the 24-hour activity time courses for each day.
+```{r}
+accel_df %>% 
+  ggplot(aes(x = minutes_of_the_day, y = activity_count,color = day_of_the_week)) +    geom_line(alpha = 0.2) + stat_smooth(se = FALSE)
+```
+Without further zoom in,the trend in different minutes of each day is not that obvious, and thus I zoom in with the limit of activity counts between 0 to 2000.
+```{r}
+accel_df %>% 
+  ggplot(aes(x = minutes_of_the_day, y = activity_count,color = day_of_the_week)) +  geom_line(alpha = 0.2) + stat_smooth(se = FALSE) + coord_cartesian(ylim = c(0,2000))
+```
+This plot shows that between 0 to 250 minutes (around 0:00 to 4:10), the activity counts are pretty low. After 250 minutes, the activity counts start to increase which implies there are more activities at day time. Then, around 1250 minutes (around 20:50), the activity counts start to decrease and this implies there are less activities at evening and night time. Finally, the activity counts get close to 0 around 1440 minutes (around 24:00), and this suggests there is almost no activity at mid-night.
+
+##Problem 3
+I will frist load the data.
+```{r}
+library(p8105.datasets)
+data("ny_noaa")
+```
+For this data set, there are `r nrow(ny_noaa)` rows and `r ncol(ny_noaa)` columns. This datasets has the weather station id -- id. There is also a variable date, and weather variables -- prcp (precipitation), snow, snwd (snow depth), tmax(maximum temperature), and tmin(minimum temperature). There is `r nrow(filter(ny_noaa,is.na(ny_noaa)))` row that does not have missing value, and the reason for these missing values is unknown, and thus these missing value could be problematic.
+
+
+
+
+
 

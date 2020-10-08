@@ -122,6 +122,9 @@ day_of_week_p =
   geom_line()
 acc_total_df %>% 
   select(-day_id) %>% 
+  pivot_wider(names_from = week,
+              names_prefix = "week ",
+              values_from = total_of_the_day) %>%
   knitr::kable()
 ```
 I will create a plot showing the mean activity for weekdays and weekends.
@@ -210,19 +213,19 @@ nyweather_df %>%
   mutate(month = if_else (month == "01","January","July")) %>% 
   group_by(month,id,year) %>% 
   summarise(mean_tmax = mean(tmax_C)) 
-ggplot(data = tmax_jj_df, aes(x = year, y = mean_tmax ,color = month, group = id)) + 
+ggplot(data = tmax_jj_df, aes(x = year, y = mean_tmax ,color = id, group = id)) + 
 geom_point(alpha = 0.3) +
 geom_path(alpha = 0.2) + 
 facet_grid(.~month) + 
-theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) + 
+theme(legend.position = "none", axis.title.x = element_blank(), axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) + 
 labs(y = "mean of maximum temperature")
 ```
 The most obvious trend is the difference between average maximum temperature between January and July. Almost every year and every station in July has a higher average maximum temperature than that of January. Besides,the outliers in July are more obvious, and they tend to be the outliers that much lower than other values. To be more accurate about that, I will plot a boxplot.
 ```{r}
 ggplot(data = tmax_jj_df, aes(x = year, y = mean_tmax ,color = month)) +
 geom_boxplot() +
-facet_grid(.~month)+ 
-theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) + 
+facet_grid(.~month) + 
+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 labs(y = "mean of maximum temperature")
 ```
 As the boxplot shown, the outliers for January are closer to the range of their regular values compare to those of July, and for January, the outliers are tend to be higher than the range of regular values.
